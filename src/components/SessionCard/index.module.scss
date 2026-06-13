@@ -1,0 +1,91 @@
+@use '@/styles/variables.scss' as *;
+
+.card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+  
+  &.active {
+    border: 2rpx solid $color-primary;
+    background: $color-bg-hover;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-sm;
+}
+
+.date {
+  display: flex;
+  flex-direction: column;
+}
+
+.monthDay {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.status {
+  font-size: $font-size-xs;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-round;
+  margin-top: 8rpx;
+  
+  &.completed {
+    background: rgba($color-success, 0.1);
+    color: $color-success;
+  }
+  
+  &.upcoming {
+    background: rgba($color-primary, 0.1);
+    color: $color-primary;
+  }
+}
+
+.weather {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  background: $color-bg-hover;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-round;
+}
+
+.location {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.time {
+  margin-bottom: $spacing-sm;
+}
+
+.timeText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.photos {
+  display: flex;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.photo {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: $radius-sm;
+}

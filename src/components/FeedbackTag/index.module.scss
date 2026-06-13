@@ -1,0 +1,80 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.title {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-sm;
+  display: block;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.tag {
+  padding: 8rpx 20rpx;
+  border-radius: $radius-round;
+  border: 1rpx solid;
+  font-size: $font-size-sm;
+}
+
+.addButton {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: $radius-round;
+  border: 2rpx dashed $color-border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+  
+  &:active {
+    background: $color-bg-hover;
+    border-color: $color-primary;
+  }
+}
+
+.addIcon {
+  font-size: $font-size-xl;
+  color: $color-text-tertiary;
+}
+
+.inputContainer {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex: 1;
+  min-width: 200rpx;
+}
+
+.input {
+  flex: 1;
+  height: 64rpx;
+  padding: 0 $spacing-sm;
+  border: 1rpx solid $color-border;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+}
+
+.confirmBtn {
+  padding: 8rpx 20rpx;
+  background: $color-primary;
+  color: $color-text-white;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  
+  &:active {
+    opacity: 0.9;
+  }
+}
