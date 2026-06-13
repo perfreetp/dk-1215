@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Input, ScrollView, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useStore, useCurrentSession, useIncomeRecord } from '@/store';
+import { useStore, useCurrentSession } from '@/store';
 import styles from './index.module.scss';
 
+const safeParse = (val: string): number => {
+  const parsed = parseInt(val);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
 export default function IncomePage() {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const currentSession = useCurrentSession();
-  const existingRecord = useIncomeRecord(currentSession?.id || '');
+  
+  const existingRecord = state.incomeRecords.find(i => i.sessionId === currentSession?.id);
   
   const [formData, setFormData] = useState({
     boothFee: '',
@@ -22,21 +28,35 @@ export default function IncomePage() {
   const [photos, setPhotos] = useState<string[]>([]);
 
   useEffect(() => {
-    if (existingRecord) {
-      setFormData({
-        boothFee: existingRecord.boothFee.toString(),
-        transportFee: existingRecord.transportFee.toString(),
-        preparationAmount: existingRecord.preparationAmount.toString(),
-        salesVolume: existingRecord.salesVolume.toString(),
-        mobilePayment: existingRecord.mobilePayment.toString(),
-        cashIncome: existingRecord.cashIncome.toString(),
-        notes: existingRecord.notes
-      });
+    if (currentSession) {
+      if (existingRecord) {
+        setFormData({
+          boothFee: existingRecord.boothFee > 0 ? existingRecord.boothFee.toString() : '',
+          transportFee: existingRecord.transportFee > 0 ? existingRecord.transportFee.toString() : '',
+          preparationAmount: existingRecord.preparationAmount > 0 ? existingRecord.preparationAmount.toString() : '',
+          salesVolume: existingRecord.salesVolume > 0 ? existingRecord.salesVolume.toString() : '',
+          mobilePayment: existingRecord.mobilePayment > 0 ? existingRecord.mobilePayment.toString() : '',
+          cashIncome: existingRecord.cashIncome > 0 ? existingRecord.cashIncome.toString() : '',
+          notes: existingRecord.notes || ''
+        });
+      } else {
+        setFormData({
+          boothFee: '',
+          transportFee: '',
+          preparationAmount: '',
+          salesVolume: '',
+          mobilePayment: '',
+          cashIncome: '',
+          notes: ''
+        });
+      }
+      setPhotos(currentSession.photos || []);
     }
-  }, [existingRecord, currentSession]);
+  }, [currentSession?.id, existingRecord?.id]);
 
-  const totalExpense = parseInt(formData.boothFee) + parseInt(formData.transportFee) + parseInt(formData.preparationAmount) || 0;
-  const totalIncome = parseInt(formData.mobilePayment) + parseInt(formData.cashIncome) || 0;
+  const totalExpense = safeParse(formData.boothFee) + safeParse(formData.transportFee) + safeParse(formData.preparationAmount);
+  const totalIncome = safeParse(formData.mobilePayment) + safeParse(formData.cashIncome);
+  const profit = totalIncome - totalExpense;
 
   const handleTakePhoto = () => {
     Taro.chooseImage({
@@ -44,25 +64,33 @@ export default function IncomePage() {
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: (res) => {
-        setPhotos([...photos, ...res.tempFilePaths]);
+        const newPhotos = [...photos, ...res.tempFilePaths];
+        setPhotos(newPhotos);
+        if (currentSession) {
+          dispatch({ type: 'UPDATE_SESSION_PHOTOS', payload: { sessionId: currentSession.id, photos: newPhotos } });
+        }
       }
     });
   };
 
   const handleRemovePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index));
+    const newPhotos = photos.filter((_, i) => i !== index);
+    setPhotos(newPhotos);
+    if (currentSession) {
+      dispatch({ type: 'UPDATE_SESSION_PHOTOS', payload: { sessionId: currentSession.id, photos: newPhotos } });
+    }
   };
 
   const handleSave = () => {
     const record = {
-      id: existingRecord?.id || Date.now().toString(),
-      sessionId: currentSession.id,
-      boothFee: parseInt(formData.boothFee) || 0,
-      transportFee: parseInt(formData.transportFee) || 0,
-      preparationAmount: parseInt(formData.preparationAmount) || 0,
-      salesVolume: parseInt(formData.salesVolume) || 0,
-      mobilePayment: parseInt(formData.mobilePayment) || 0,
-      cashIncome: parseInt(formData.cashIncome) || 0,
+      id: existingRecord?.id || `income_${currentSession?.id}_${Date.now()}`,
+      sessionId: currentSession?.id || '',
+      boothFee: safeParse(formData.boothFee),
+      transportFee: safeParse(formData.transportFee),
+      preparationAmount: safeParse(formData.preparationAmount),
+      salesVolume: safeParse(formData.salesVolume),
+      mobilePayment: safeParse(formData.mobilePayment),
+      cashIncome: safeParse(formData.cashIncome),
       notes: formData.notes
     };
 
@@ -125,7 +153,7 @@ export default function IncomePage() {
               className={styles.formInput}
               type="number"
               value={formData.boothFee}
-              onChange={(e) => setFormData({ ...formData, boothFee: e.detail.value })}
+              onInput={(e) => setFormData({ ...formData, boothFee: e.detail.value })}
               placeholder="0"
             />
           </View>
@@ -135,7 +163,7 @@ export default function IncomePage() {
               className={styles.formInput}
               type="number"
               value={formData.transportFee}
-              onChange={(e) => setFormData({ ...formData, transportFee: e.detail.value })}
+              onInput={(e) => setFormData({ ...formData, transportFee: e.detail.value })}
               placeholder="0"
             />
           </View>
@@ -147,7 +175,7 @@ export default function IncomePage() {
             className={styles.formInput}
             type="number"
             value={formData.preparationAmount}
-            onChange={(e) => setFormData({ ...formData, preparationAmount: e.detail.value })}
+            onInput={(e) => setFormData({ ...formData, preparationAmount: e.detail.value })}
             placeholder="0"
           />
         </View>
@@ -172,7 +200,7 @@ export default function IncomePage() {
             className={styles.formInput}
             type="number"
             value={formData.salesVolume}
-            onChange={(e) => setFormData({ ...formData, salesVolume: e.detail.value })}
+            onInput={(e) => setFormData({ ...formData, salesVolume: e.detail.value })}
             placeholder="0"
           />
         </View>
@@ -184,7 +212,7 @@ export default function IncomePage() {
               className={styles.formInput}
               type="number"
               value={formData.mobilePayment}
-              onChange={(e) => setFormData({ ...formData, mobilePayment: e.detail.value })}
+              onInput={(e) => setFormData({ ...formData, mobilePayment: e.detail.value })}
               placeholder="0"
             />
           </View>
@@ -194,7 +222,7 @@ export default function IncomePage() {
               className={styles.formInput}
               type="number"
               value={formData.cashIncome}
-              onChange={(e) => setFormData({ ...formData, cashIncome: e.detail.value })}
+              onInput={(e) => setFormData({ ...formData, cashIncome: e.detail.value })}
               placeholder="0"
             />
           </View>
@@ -216,8 +244,8 @@ export default function IncomePage() {
         
         <View className={styles.totalRow}>
           <Text className={styles.totalLabel}>本场利润</Text>
-          <Text className={`${styles.totalValue} ${totalIncome - totalExpense >= 0 ? '' : 'color: #f53f3f'}`}>
-            {totalIncome - totalExpense >= 0 ? '+' : ''}¥{totalIncome - totalExpense}
+          <Text className={styles.totalValue} style={{ color: profit >= 0 ? '#00b42a' : '#f53f3f' }}>
+            {profit >= 0 ? '+' : ''}¥{profit}
           </Text>
         </View>
       </View>
@@ -228,7 +256,7 @@ export default function IncomePage() {
           className={styles.notesInput}
           type="textarea"
           value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.detail.value })}
+          onInput={(e) => setFormData({ ...formData, notes: e.detail.value })}
           placeholder="记录本场摆摊的感受和心得..."
         />
       </View>

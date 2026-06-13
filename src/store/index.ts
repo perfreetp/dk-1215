@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import type { Session, IncomeRecord, Product, Feedback, Report, Target } from '@/types';
-import { mockSessions, mockIncomeRecords, mockProducts, mockFeedbacks, mockReports } from '@/data/mock';
+import { mockSessions, mockIncomeRecords, mockProducts, mockFeedbacks } from '@/data/mock';
 
 interface State {
   sessions: Session[];
   incomeRecords: IncomeRecord[];
   products: Product[];
   feedbacks: Feedback[];
-  reports: Report[];
   currentSessionId: string | null;
   target: Target;
 }
@@ -19,24 +18,24 @@ type Action =
   | { type: 'SET_CURRENT_SESSION'; payload: string | null }
   | { type: 'ADD_INCOME_RECORD'; payload: IncomeRecord }
   | { type: 'UPDATE_INCOME_RECORD'; payload: IncomeRecord }
+  | { type: 'ADD_PRODUCT'; payload: Product }
   | { type: 'UPDATE_PRODUCT'; payload: Product }
   | { type: 'ADD_FEEDBACK'; payload: Feedback }
   | { type: 'UPDATE_FEEDBACK'; payload: Feedback }
-  | { type: 'ADD_REPORT'; payload: Report }
-  | { type: 'SET_TARGET'; payload: Target };
+  | { type: 'SET_TARGET'; payload: Target }
+  | { type: 'UPDATE_SESSION_PHOTOS'; payload: { sessionId: string; photos: string[] } };
 
 const initialState: State = {
   sessions: mockSessions,
   incomeRecords: mockIncomeRecords,
   products: mockProducts,
   feedbacks: mockFeedbacks,
-  reports: mockReports,
   currentSessionId: mockSessions[0]?.id || null,
   target: {
     id: '1',
     amount: 5000,
     deadline: '2024-03-31',
-    progress: 23
+    progress: 0
   }
 };
 
@@ -61,8 +60,10 @@ function reducer(state: State, action: Action): State {
     case 'UPDATE_INCOME_RECORD':
       return {
         ...state,
-        incomeRecords: state.incomeRecords.map(i => i.id === action.payload.id ? action.payload : i)
+        incomeRecords: state.incomeRecords.map(i => i.sessionId === action.payload.sessionId ? action.payload : i)
       };
+    case 'ADD_PRODUCT':
+      return { ...state, products: [...state.products, action.payload] };
     case 'UPDATE_PRODUCT':
       return {
         ...state,
@@ -75,10 +76,15 @@ function reducer(state: State, action: Action): State {
         ...state,
         feedbacks: state.feedbacks.map(f => f.id === action.payload.id ? action.payload : f)
       };
-    case 'ADD_REPORT':
-      return { ...state, reports: [...state.reports, action.payload] };
     case 'SET_TARGET':
       return { ...state, target: action.payload };
+    case 'UPDATE_SESSION_PHOTOS':
+      return {
+        ...state,
+        sessions: state.sessions.map(s => 
+          s.id === action.payload.sessionId ? { ...s, photos: action.payload.photos } : s
+        )
+      };
     default:
       return state;
   }
@@ -121,9 +127,4 @@ export function useIncomeRecord(sessionId: string) {
 export function useFeedback(sessionId: string) {
   const { state } = useStore();
   return state.feedbacks.find(f => f.sessionId === sessionId);
-}
-
-export function useReport(sessionId: string) {
-  const { state } = useStore();
-  return state.reports.find(r => r.sessionId === sessionId);
 }

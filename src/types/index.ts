@@ -40,17 +40,6 @@ export interface Feedback {
   rejectionReasons: string[];
 }
 
-export interface Report {
-  id: string;
-  sessionId: string;
-  totalIncome: number;
-  totalExpense: number;
-  profit: number;
-  roi: number;
-  bestTimeSlot: string;
-  nextPreparationList: string[];
-}
-
 export interface Target {
   id: string;
   amount: number;

@@ -1,24 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Input, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useStore, useCurrentSession, useReport } from '@/store';
-import ReportCard from '@/components/ReportCard';
+import { useStore, useCurrentSession } from '@/store';
 import styles from './index.module.scss';
 import type { LocationCompare } from '@/types';
+
+const safeParse = (val: string): number => {
+  const parsed = parseInt(val);
+  return isNaN(parsed) ? 0 : parsed;
+};
 
 export default function ReportPage() {
   const { state, dispatch } = useStore();
   const currentSession = useCurrentSession();
-  const report = useReport(currentSession?.id || '');
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetAmount, setTargetAmount] = useState(state.target.amount.toString());
   const [targetDeadline, setTargetDeadline] = useState(state.target.deadline);
 
-  const locationComparison: LocationCompare[] = [
-    { location: '静安创意市集', totalIncome: 1600, totalProfit: 450, avgProfit: 450, count: 1 },
-    { location: '徐汇夜市', totalIncome: 1140, totalProfit: 280, avgProfit: 280, count: 1 },
-    { location: '浦东周末市集', totalIncome: 0, totalProfit: 0, avgProfit: 0, count: 0 }
-  ];
+  const currentIncomeRecord = state.incomeRecords.find(i => i.sessionId === currentSession?.id);
+
+  const totalIncome = currentIncomeRecord?.mobilePayment || 0 + currentIncomeRecord?.cashIncome || 0;
+  const totalExpense = currentIncomeRecord 
+    ? currentIncomeRecord.boothFee + currentIncomeRecord.transportFee + currentIncomeRecord.preparationAmount 
+    : 0;
+  const profit = totalIncome - totalExpense;
+  const roi = totalExpense > 0 ? profit / totalExpense : 0;
+
+  const locationComparison: LocationCompare[] = useMemo(() => {
+    const locationMap = new Map<string, { totalIncome: number; totalExpense: number; count: number }>();
+    
+    state.sessions.forEach(session => {
+      if (session.status === 'completed') {
+        const incomeRecord = state.incomeRecords.find(i => i.sessionId === session.id);
+        if (incomeRecord) {
+          const existing = locationMap.get(session.location) || { totalIncome: 0, totalExpense: 0, count: 0 };
+          const sessionIncome = incomeRecord.mobilePayment + incomeRecord.cashIncome;
+          const sessionExpense = incomeRecord.boothFee + incomeRecord.transportFee + incomeRecord.preparationAmount;
+          locationMap.set(session.location, {
+            totalIncome: existing.totalIncome + sessionIncome,
+            totalExpense: existing.totalExpense + sessionExpense,
+            count: existing.count + 1
+          });
+        }
+      }
+    });
+
+    return Array.from(locationMap.entries()).map(([location, data]) => ({
+      location,
+      totalIncome: data.totalIncome,
+      totalProfit: data.totalIncome - data.totalExpense,
+      avgProfit: data.count > 0 ? (data.totalIncome - data.totalExpense) / data.count : 0,
+      count: data.count
+    }));
+  }, [state.sessions, state.incomeRecords]);
+
+  const totalProfit = locationComparison.reduce((sum, loc) => sum + loc.totalProfit, 0);
+  const targetProgress = state.target.amount > 0 ? Math.round((totalProfit / state.target.amount) * 100) : 0;
 
   const handleShare = () => {
     Taro.showToast({
@@ -38,9 +75,9 @@ export default function ReportPage() {
       type: 'SET_TARGET',
       payload: {
         id: state.target.id,
-        amount: parseInt(targetAmount) || 0,
+        amount: safeParse(targetAmount),
         deadline: targetDeadline,
-        progress: state.target.progress
+        progress: targetProgress
       }
     });
     setShowTargetModal(false);
@@ -49,6 +86,11 @@ export default function ReportPage() {
       icon: 'success'
     });
   };
+
+  const roiPercent = (roi * 100).toFixed(1);
+  const bestTimeSlot = currentSession?.startTime && currentSession?.endTime 
+    ? `${currentSession.startTime}-${currentSession.endTime}` 
+    : '暂无数据';
 
   return (
     <ScrollView className={styles.page} scrollY>
@@ -71,38 +113,86 @@ export default function ReportPage() {
           <Text className={styles.targetEdit} onClick={() => setShowTargetModal(true)}>编辑</Text>
         </View>
         <View className={styles.targetProgressBar}>
-          <View className={styles.targetProgressFill} style={{ width: `${state.target.progress}%` }} />
+          <View className={styles.targetProgressFill} style={{ width: `${Math.min(targetProgress, 100)}%` }} />
         </View>
         <View className={styles.targetInfo}>
-          <Text className={styles.targetAmount}>目标: ¥{state.target.amount}</Text>
-          <Text className={styles.targetPercent}>{state.target.progress}%</Text>
+          <Text className={styles.targetAmount}>累计利润: ¥{totalProfit} / 目标: ¥{state.target.amount}</Text>
+          <Text className={styles.targetPercent}>{targetProgress}%</Text>
         </View>
       </View>
 
-      {report ? (
-        <ReportCard report={report} />
-      ) : (
-        <View className={styles.emptyState}>
-          <Text className={styles.emptyIcon}>📊</Text>
-          <Text className={styles.emptyText}>暂无复盘数据，请先录入收支记录</Text>
+      <View className={styles.section}>
+        <Text className={styles.sectionTitle}>
+          <Text className={styles.sectionIcon}>📊</Text>
+          <Text>本场数据</Text>
+        </Text>
+        
+        <View className={styles.reportSummary}>
+          <View className={styles.summaryRow}>
+            <View className={styles.summaryItem}>
+              <Text className={styles.summaryLabel}>总收入</Text>
+              <Text className={styles.summaryValue}>¥{totalIncome}</Text>
+            </View>
+            <View className={styles.summaryItem}>
+              <Text className={styles.summaryLabel}>总支出</Text>
+              <Text className={styles.summaryValueExpense}>¥{totalExpense}</Text>
+            </View>
+          </View>
+          
+          <View className={styles.profitSection}>
+            <Text className={styles.profitLabel}>本场利润</Text>
+            <Text className={`${styles.profitValue} ${profit >= 0 ? styles.profit : styles.loss}`}>
+              {profit >= 0 ? '+' : ''}¥{profit}
+            </Text>
+          </View>
+          
+          <View className={styles.roiSection}>
+            <View className={styles.roiBar}>
+              <View className={styles.roiFill} style={{ width: `${Math.min(Math.max(roi * 200, 0), 100)}%` }} />
+            </View>
+            <View className={styles.roiInfo}>
+              <Text className={styles.roiLabel}>投入产出比</Text>
+              <Text className={styles.roiValue}>{roiPercent}%</Text>
+            </View>
+          </View>
+          
+          <View className={styles.bestTime}>
+            <Text className={styles.bestTimeLabel}>营业时段</Text>
+            <Text className={styles.bestTimeValue}>{bestTimeSlot}</Text>
+          </View>
         </View>
-      )}
+      </View>
 
       <View className={styles.section}>
         <Text className={styles.sectionTitle}>
           <Text className={styles.sectionIcon}>📍</Text>
           <Text>地点对比</Text>
         </Text>
-        <View className={styles.locationCompare}>
-          {locationComparison.map((item, index) => (
-            <View key={index} className={styles.locationItem}>
-              <Text className={styles.locationName}>{item.location}</Text>
-              <Text className={styles.locationProfit}>
-                {item.count > 0 ? `¥${item.avgProfit}/场` : '暂无数据'}
-              </Text>
-            </View>
-          ))}
-        </View>
+        {locationComparison.length > 0 ? (
+          <View className={styles.locationCompare}>
+            {locationComparison.map((item, index) => (
+              <View key={index} className={styles.locationItem}>
+                <View className={styles.locationInfo}>
+                  <Text className={styles.locationName}>{item.location}</Text>
+                  <Text className={styles.locationCount}>{item.count}场</Text>
+                </View>
+                <View className={styles.locationStats}>
+                  <Text className={styles.locationProfit}>
+                    {item.count > 0 ? `¥${item.totalProfit.toFixed(0)}` : '暂无数据'}
+                  </Text>
+                  <Text className={styles.locationAvg}>
+                    {item.count > 0 ? `场均 ¥${item.avgProfit.toFixed(0)}` : ''}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View className={styles.emptyState}>
+            <Text className={styles.emptyIcon}>📍</Text>
+            <Text className={styles.emptyText}>暂无地点数据，添加场次并录入收支后将自动统计</Text>
+          </View>
+        )}
       </View>
 
       {showTargetModal && (
@@ -116,7 +206,7 @@ export default function ReportPage() {
                 className={styles.formInput}
                 type="number"
                 value={targetAmount}
-                onChange={(e) => setTargetAmount(e.detail.value)}
+                onInput={(e) => setTargetAmount(e.detail.value)}
                 placeholder="输入目标金额"
               />
             </View>
@@ -126,7 +216,7 @@ export default function ReportPage() {
               <Input 
                 className={styles.formInput}
                 value={targetDeadline}
-                onChange={(e) => setTargetDeadline(e.detail.value)}
+                onInput={(e) => setTargetDeadline(e.detail.value)}
                 placeholder="如：2024-03-31"
               />
             </View>

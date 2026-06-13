@@ -15,7 +15,7 @@ export default function ProductsPage() {
     price: '',
     costPrice: '',
     stock: '',
-    sold: '0'
+    sold: ''
   });
 
   const filteredProducts = state.products.filter(product => {
@@ -30,9 +30,10 @@ export default function ProductsPage() {
   const totalProfit = state.products.reduce((sum, p) => sum + (p.price - p.costPrice) * p.sold, 0);
 
   const handleAddProduct = () => {
+    if (!formData.name.trim()) return;
     const newProduct = {
       id: Date.now().toString(),
-      name: formData.name,
+      name: formData.name.trim(),
       price: parseInt(formData.price) || 0,
       costPrice: parseInt(formData.costPrice) || 0,
       stock: parseInt(formData.stock) || 0,
@@ -40,9 +41,9 @@ export default function ProductsPage() {
       restockSuggestion: '',
       priceAdjustmentNote: ''
     };
-    dispatch({ type: 'UPDATE_PRODUCT', payload: newProduct });
+    dispatch({ type: 'ADD_PRODUCT', payload: newProduct });
     setShowModal(false);
-    setFormData({ name: '', price: '', costPrice: '', stock: '', sold: '0' });
+    setFormData({ name: '', price: '', costPrice: '', stock: '', sold: '' });
   };
 
   return (
