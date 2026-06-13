@@ -1,6 +1,64 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import type { Session, IncomeRecord, Product, Feedback, Target, PreparationItem } from '@/types';
-import { mockSessions, mockIncomeRecords, mockProducts, mockFeedbacks } from '@/data/mock';
+import type { Session, IncomeRecord, Product, Feedback, Target, PreparationItem, SessionReport } from '@/types';
+import { mockSessions, mockIncomeRecords, mockFeedbacks } from '@/data/mock';
+
+const mockProducts: Product[] = [
+  {
+    id: 'p1',
+    sessionId: '1',
+    name: '手工陶瓷杯',
+    price: 45,
+    costPrice: 18,
+    stock: 15,
+    sold: 8,
+    restockSuggestion: '库存充足，暂不需要补货',
+    priceAdjustmentNote: '定价合理，销量稳定'
+  },
+  {
+    id: 'p2',
+    sessionId: '1',
+    name: '香薰蜡烛',
+    price: 38,
+    costPrice: 15,
+    stock: 8,
+    sold: 12,
+    restockSuggestion: '库存不足，建议补货20个',
+    priceAdjustmentNote: '销量很好，可考虑提价5元'
+  },
+  {
+    id: 'p3',
+    sessionId: '1',
+    name: '手绘明信片',
+    price: 12,
+    costPrice: 3,
+    stock: 50,
+    sold: 25,
+    restockSuggestion: '库存充足',
+    priceAdjustmentNote: '性价比高，保持原价'
+  },
+  {
+    id: 'p4',
+    sessionId: '2',
+    name: '手工编织包',
+    price: 88,
+    costPrice: 35,
+    stock: 5,
+    sold: 3,
+    restockSuggestion: '库存较少，建议补货10个',
+    priceAdjustmentNote: '价格偏高，考虑促销活动'
+  },
+  {
+    id: 'p5',
+    sessionId: '2',
+    name: '多肉植物',
+    price: 25,
+    costPrice: 10,
+    stock: 20,
+    sold: 15,
+    restockSuggestion: '库存适中',
+    priceAdjustmentNote: '销量不错，保持原价'
+  }
+];
 
 interface State {
   sessions: Session[];
@@ -10,6 +68,7 @@ interface State {
   currentSessionId: string | null;
   target: Target;
   preparationLists: Map<string, PreparationItem[]>;
+  sessionReports: Map<string, SessionReport>;
 }
 
 type Action =
@@ -25,7 +84,8 @@ type Action =
   | { type: 'UPDATE_FEEDBACK'; payload: Feedback }
   | { type: 'SET_TARGET'; payload: Target }
   | { type: 'UPDATE_SESSION_PHOTOS'; payload: { sessionId: string; photos: string[] } }
-  | { type: 'UPDATE_PREPARATION_LIST'; payload: { sessionId: string; items: PreparationItem[] } };
+  | { type: 'UPDATE_PREPARATION_LIST'; payload: { sessionId: string; items: PreparationItem[] } }
+  | { type: 'UPDATE_REPORT_CONCLUSION'; payload: { sessionId: string; conclusion: string } };
 
 const initialState: State = {
   sessions: mockSessions,
@@ -39,7 +99,8 @@ const initialState: State = {
     deadline: '2024-03-31',
     progress: 0
   },
-  preparationLists: new Map()
+  preparationLists: new Map(),
+  sessionReports: new Map()
 };
 
 function reducer(state: State, action: Action): State {
@@ -93,6 +154,14 @@ function reducer(state: State, action: Action): State {
         ...state,
         preparationLists: new Map(state.preparationLists).set(action.payload.sessionId, action.payload.items)
       };
+    case 'UPDATE_REPORT_CONCLUSION':
+      return {
+        ...state,
+        sessionReports: new Map(state.sessionReports).set(action.payload.sessionId, {
+          sessionId: action.payload.sessionId,
+          conclusion: action.payload.conclusion
+        })
+      };
     default:
       return state;
   }
@@ -140,4 +209,14 @@ export function useFeedback(sessionId: string) {
 export function usePreparationList(sessionId: string) {
   const { state } = useStore();
   return state.preparationLists.get(sessionId) || [];
+}
+
+export function useSessionProducts(sessionId: string) {
+  const { state } = useStore();
+  return state.products.filter(p => p.sessionId === sessionId);
+}
+
+export function useReportConclusion(sessionId: string) {
+  const { state } = useStore();
+  return state.sessionReports.get(sessionId)?.conclusion || '';
 }

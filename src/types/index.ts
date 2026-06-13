@@ -23,6 +23,7 @@ export interface IncomeRecord {
 
 export interface Product {
   id: string;
+  sessionId: string;
   name: string;
   price: number;
   costPrice: number;
@@ -61,4 +62,21 @@ export interface PreparationItem {
   id: string;
   text: string;
   checked: boolean;
+  type: 'dynamic' | 'static';
+}
+
+export interface SessionReport {
+  sessionId: string;
+  conclusion: string;
+}
+
+export interface LocationDetail {
+  location: string;
+  sessions: {
+    sessionId: string;
+    date: string;
+    profit: number;
+    salesVolume: number;
+    notes: string;
+  }[];
 }

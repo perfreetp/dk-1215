@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Input, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useStore, useCurrentSession, usePreparationList } from '@/store';
+import { useStore, useCurrentSession, usePreparationList, useSessionProducts, useReportConclusion } from '@/store';
 import styles from './index.module.scss';
 import type { LocationCompare, PreparationItem } from '@/types';
 
@@ -10,7 +10,7 @@ const safeParse = (val: string): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
-function generateSuggestions(incomeRecord, products) {
+function generateDynamicSuggestions(incomeRecord, products): PreparationItem[] {
   const suggestions: PreparationItem[] = [];
   const totalIncome = (incomeRecord?.mobilePayment || 0) + (incomeRecord?.cashIncome || 0);
   const totalExpense = (incomeRecord?.boothFee || 0) + (incomeRecord?.transportFee || 0) + (incomeRecord?.preparationAmount || 0);
@@ -18,40 +18,80 @@ function generateSuggestions(incomeRecord, products) {
   const salesVolume = incomeRecord?.salesVolume || 0;
   
   if (profit < 0) {
-    suggestions.push({ id: 's1', text: '⚠️ 本场亏损，建议分析成本结构', checked: false });
+    suggestions.push({ id: 'dyn_p1', text: '⚠️ 本场亏损，建议分析成本结构', checked: false, type: 'dynamic' });
   } else if (profit < 100) {
-    suggestions.push({ id: 's2', text: '💡 利润较低，考虑调整定价或成本', checked: false });
+    suggestions.push({ id: 'dyn_p2', text: '💡 利润较低，考虑调整定价或成本', checked: false, type: 'dynamic' });
   }
   
   if ((incomeRecord?.preparationAmount || 0) > totalIncome * 0.6) {
-    suggestions.push({ id: 's3', text: '📦 备货成本过高，优化备货策略', checked: false });
+    suggestions.push({ id: 'dyn_p3', text: '📦 备货成本过高，优化备货策略', checked: false, type: 'dynamic' });
   }
   
   if (salesVolume < 10) {
-    suggestions.push({ id: 's4', text: '📉 销量较少，考虑营销或产品调整', checked: false });
+    suggestions.push({ id: 'dyn_p4', text: '📉 销量较少，考虑营销或产品调整', checked: false, type: 'dynamic' });
   }
   
   const lowStockProducts = products.filter(p => p.stock < 5);
   if (lowStockProducts.length > 0) {
-    suggestions.push({ id: 's5', text: `🔄 补货提醒：${lowStockProducts.map(p => p.name).join('、')}`, checked: false });
+    suggestions.push({ id: 'dyn_p5', text: `🔄 补货提醒：${lowStockProducts.map(p => p.name).join('、')}`, checked: false, type: 'dynamic' });
   }
   
-  suggestions.push({ id: 's6', text: '✅ 准备零钱和收款码', checked: false });
-  suggestions.push({ id: 's7', text: '✅ 检查摊位布置和展示道具', checked: false });
-  suggestions.push({ id: 's8', text: '✅ 准备好价目表和宣传材料', checked: false });
-  
   return suggestions;
+}
+
+function generateConclusion(incomeRecord, products, feedback): string {
+  const parts: string[] = [];
+  const totalIncome = (incomeRecord?.mobilePayment || 0) + (incomeRecord?.cashIncome || 0);
+  const totalExpense = (incomeRecord?.boothFee || 0) + (incomeRecord?.transportFee || 0) + (incomeRecord?.preparationAmount || 0);
+  const profit = totalIncome - totalExpense;
+  const salesVolume = incomeRecord?.salesVolume || 0;
+  const avgOrderValue = salesVolume > 0 ? (totalIncome / salesVolume).toFixed(1) : '0';
+  
+  if (profit >= 0) {
+    parts.push(`本次摆摊盈利¥${profit}，投入产出比${totalExpense > 0 ? ((profit / totalExpense) * 100).toFixed(0) : '0'}%。`);
+  } else {
+    parts.push(`本次摆摊亏损¥${Math.abs(profit)}，建议分析成本结构。`);
+  }
+  
+  if (salesVolume > 0) {
+    parts.push(`共售出${salesVolume}件商品，客单价¥${avgOrderValue}。`);
+  }
+  
+  const bestSeller = products.length > 0 ? products.reduce((a, b) => a.sold > b.sold ? a : b) : null;
+  if (bestSeller) {
+    parts.push(`最畅销商品是「${bestSeller.name}」，售出${bestSeller.sold}件。`);
+  }
+  
+  if (feedback?.frequentlyAskedQuestions?.length > 0) {
+    parts.push(`顾客最关心的问题：${feedback.frequentlyAskedQuestions[0]}。`);
+  }
+  
+  if (feedback?.popularDisplays?.length > 0) {
+    parts.push(`受欢迎的陈列方式：${feedback.popularDisplays[0]}。`);
+  }
+  
+  if (parts.length === 0) {
+    parts.push('暂无数据，录入收支和商品信息后将自动生成复盘结论。');
+  }
+  
+  return parts.join(' ');
 }
 
 export default function ReportPage() {
   const { state, dispatch } = useStore();
   const currentSession = useCurrentSession();
   const savedPreparationList = usePreparationList(currentSession?.id || '');
+  const sessionProducts = useSessionProducts(currentSession?.id || '');
+  const savedConclusion = useReportConclusion(currentSession?.id || '');
+  
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetAmount, setTargetAmount] = useState(state.target.amount.toString());
   const [targetDeadline, setTargetDeadline] = useState(state.target.deadline);
+  const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);
+  const [conclusion, setConclusion] = useState(savedConclusion);
   
   const currentIncomeRecord = state.incomeRecords.find(i => i.sessionId === currentSession?.id);
+  const currentFeedback = state.feedbacks.find(f => f.sessionId === currentSession?.id);
   
   const mobilePayment = currentIncomeRecord?.mobilePayment || 0;
   const cashIncome = currentIncomeRecord?.cashIncome || 0;
@@ -66,16 +106,34 @@ export default function ReportPage() {
   const roi = totalExpense > 0 ? profit / totalExpense : 0;
   
   const incomeSalesVolume = currentIncomeRecord?.salesVolume || 0;
-  const productSalesVolume = state.products.reduce((sum, p) => sum + p.sold, 0);
+  const productSalesVolume = sessionProducts.reduce((sum, p) => sum + p.sold, 0);
   const salesDiff = Math.abs(incomeSalesVolume - productSalesVolume);
   const hasSalesMismatch = salesDiff > 5 && incomeSalesVolume > 0 && productSalesVolume > 0;
   
+  const staticItems: PreparationItem[] = [
+    { id: 'sta_p1', text: '✅ 准备零钱和收款码', checked: false, type: 'static' },
+    { id: 'sta_p2', text: '✅ 检查摊位布置和展示道具', checked: false, type: 'static' },
+    { id: 'sta_p3', text: '✅ 准备好价目表和宣传材料', checked: false, type: 'static' }
+  ];
+
   const preparationList = useMemo(() => {
-    if (savedPreparationList.length > 0) {
-      return savedPreparationList;
-    }
-    return generateSuggestions(currentIncomeRecord, state.products);
-  }, [savedPreparationList, currentIncomeRecord, state.products]);
+    const savedStatic = savedPreparationList.filter(item => item.type === 'static');
+    const savedDynamicIds = savedPreparationList.filter(item => item.type === 'dynamic').map(item => item.id);
+    
+    const newDynamic = generateDynamicSuggestions(currentIncomeRecord, sessionProducts);
+    const existingDynamic = savedPreparationList.filter(item => 
+      item.type === 'dynamic' && newDynamic.some(d => d.id === item.id)
+    );
+    
+    const newDynamicItems = newDynamic.filter(d => !savedDynamicIds.includes(d.id));
+    
+    const mergedStatic = staticItems.map(staticItem => {
+      const saved = savedStatic.find(s => s.id === staticItem.id);
+      return saved || staticItem;
+    });
+    
+    return [...existingDynamic, ...newDynamicItems, ...mergedStatic];
+  }, [savedPreparationList, currentIncomeRecord, sessionProducts]);
 
   const locationComparison: LocationCompare[] = useMemo(() => {
     const locationMap = new Map<string, { totalIncome: number; totalExpense: number; bestProfit: number; count: number }>();
@@ -113,6 +171,25 @@ export default function ReportPage() {
       count: data.count
     }));
   }, [state.sessions, state.incomeRecords]);
+
+  const locationDetailSessions = useMemo(() => {
+    if (!showLocationDetail) return [];
+    return state.sessions
+      .filter(s => s.location === showLocationDetail)
+      .map(session => {
+        const incomeRecord = state.incomeRecords.find(i => i.sessionId === session.id);
+        const sessionIncome = incomeRecord ? incomeRecord.mobilePayment + incomeRecord.cashIncome : 0;
+        const sessionExpense = incomeRecord ? incomeRecord.boothFee + incomeRecord.transportFee + incomeRecord.preparationAmount : 0;
+        return {
+          sessionId: session.id,
+          date: session.date,
+          profit: sessionIncome - sessionExpense,
+          salesVolume: incomeRecord?.salesVolume || 0,
+          notes: incomeRecord?.notes || ''
+        };
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [showLocationDetail, state.sessions, state.incomeRecords]);
 
   const totalProfit = locationComparison.reduce((sum, loc) => sum + loc.totalProfit, 0);
   const targetProgress = state.target.amount > 0 ? Math.round((totalProfit / state.target.amount) * 100) : 0;
@@ -157,10 +234,32 @@ export default function ReportPage() {
     });
   };
 
+  const handleSaveConclusion = () => {
+    dispatch({
+      type: 'UPDATE_REPORT_CONCLUSION',
+      payload: { sessionId: currentSession?.id || '', conclusion }
+    });
+    Taro.showToast({
+      title: '已保存',
+      icon: 'success'
+    });
+  };
+
+  const handleResetConclusion = () => {
+    const autoConclusion = generateConclusion(currentIncomeRecord, sessionProducts, currentFeedback);
+    setConclusion(autoConclusion);
+    dispatch({
+      type: 'UPDATE_REPORT_CONCLUSION',
+      payload: { sessionId: currentSession?.id || '', conclusion: autoConclusion }
+    });
+  };
+
   const roiPercent = (roi * 100).toFixed(1);
   const bestTimeSlot = currentSession?.startTime && currentSession?.endTime 
     ? `${currentSession.startTime}-${currentSession.endTime}` 
     : '暂无数据';
+
+  const autoConclusion = generateConclusion(currentIncomeRecord, sessionProducts, currentFeedback);
 
   return (
     <ScrollView className={styles.page} scrollY>
@@ -247,9 +346,34 @@ export default function ReportPage() {
 
       <View className={styles.section}>
         <Text className={styles.sectionTitle}>
+          <Text className={styles.sectionIcon}>📝</Text>
+          <Text>复盘结论</Text>
+        </View>
+        <View className={styles.conclusionSection}>
+          <Input 
+            className={styles.conclusionInput}
+            type="textarea"
+            value={conclusion || autoConclusion}
+            onChange={(e) => setConclusion(e.detail.value)}
+            placeholder="自动生成的复盘结论..."
+            placeholderStyle={{ color: '#999' }}
+          />
+          <View className={styles.conclusionButtons}>
+            <View className={styles.conclusionButton} onClick={handleResetConclusion}>
+              <Text>🔄 重新生成</Text>
+            </View>
+            <View className={styles.conclusionButton} onClick={handleSaveConclusion}>
+              <Text>💾 保存</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View className={styles.section}>
+        <Text className={styles.sectionTitle}>
           <Text className={styles.sectionIcon}>✅</Text>
           <Text>下次准备清单</Text>
-        </Text>
+        </View>
         <View className={styles.preparationList}>
           {preparationList.map(item => (
             <View 
@@ -276,7 +400,11 @@ export default function ReportPage() {
         {locationComparison.length > 0 ? (
           <View className={styles.locationCompare}>
             {locationComparison.map((item, index) => (
-              <View key={index} className={styles.locationItem}>
+              <View 
+                key={index} 
+                className={styles.locationItem}
+                onClick={() => setShowLocationDetail(item.location)}
+              >
                 <View className={styles.locationInfo}>
                   <Text className={styles.locationName}>{item.location}</Text>
                   <Text className={styles.locationCount}>{item.count}场</Text>
@@ -292,6 +420,7 @@ export default function ReportPage() {
                     {item.count > 0 && item.bestProfit > 0 ? `最高 ¥${item.bestProfit.toFixed(0)}` : ''}
                   </Text>
                 </View>
+                <Text className={styles.locationArrow}>›</Text>
               </View>
             ))}
           </View>
@@ -302,6 +431,41 @@ export default function ReportPage() {
           </View>
         )}
       </View>
+
+      {showLocationDetail && (
+        <View className={styles.section}>
+          <View className={styles.locationDetailHeader}>
+            <Text className={styles.locationDetailTitle}>{showLocationDetail} - 历史场次</Text>
+            <Text className={styles.locationDetailClose} onClick={() => setShowLocationDetail(null)}>✕</Text>
+          </View>
+          <View className={styles.locationDetailList}>
+            {locationDetailSessions.length > 0 ? (
+              locationDetailSessions.map((session, index) => (
+                <View key={index} className={styles.locationDetailItem}>
+                  <View className={styles.locationDetailDate}>
+                    <Text>{session.date}</Text>
+                    {session.profit >= 0 ? (
+                      <Text className={styles.locationDetailProfitPositive}>+¥{session.profit}</Text>
+                    ) : (
+                      <Text className={styles.locationDetailProfitNegative}>¥{session.profit}</Text>
+                    )}
+                  </View>
+                  <View className={styles.locationDetailInfo}>
+                    <Text className={styles.locationDetailSales}>销量: {session.salesVolume}件</Text>
+                    {session.notes && (
+                      <Text className={styles.locationDetailNotes}>{session.notes}</Text>
+                    )}
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View className={styles.emptyState}>
+                <Text className={styles.emptyText}>暂无该地点的场次记录</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
 
       {showTargetModal && (
         <View className={styles.modalOverlay} onClick={() => setShowTargetModal(false)}>

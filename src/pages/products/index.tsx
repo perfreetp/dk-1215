@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Input, ScrollView } from '@tarojs/components';
-import { useStore } from '@/store';
+import { useStore, useCurrentSession, useSessionProducts } from '@/store';
 import ProductCard from '@/components/ProductCard';
 import styles from './index.module.scss';
 
@@ -8,6 +8,9 @@ type FilterType = 'all' | 'best' | 'lowStock';
 
 export default function ProductsPage() {
   const { state, dispatch } = useStore();
+  const currentSession = useCurrentSession();
+  const sessionProducts = useSessionProducts(currentSession?.id || '');
+  
   const [filter, setFilter] = useState<FilterType>('all');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -18,21 +21,22 @@ export default function ProductsPage() {
     sold: ''
   });
 
-  const filteredProducts = state.products.filter(product => {
+  const filteredProducts = sessionProducts.filter(product => {
     if (filter === 'all') return true;
     if (filter === 'best') return product.sold > 5;
     if (filter === 'lowStock') return product.stock < 10;
     return true;
   });
 
-  const totalSold = state.products.reduce((sum, p) => sum + p.sold, 0);
-  const totalStock = state.products.reduce((sum, p) => sum + p.stock, 0);
-  const totalProfit = state.products.reduce((sum, p) => sum + (p.price - p.costPrice) * p.sold, 0);
+  const totalSold = sessionProducts.reduce((sum, p) => sum + p.sold, 0);
+  const totalStock = sessionProducts.reduce((sum, p) => sum + p.stock, 0);
+  const totalProfit = sessionProducts.reduce((sum, p) => sum + (p.price - p.costPrice) * p.sold, 0);
 
   const handleAddProduct = () => {
     if (!formData.name.trim()) return;
     const newProduct = {
       id: Date.now().toString(),
+      sessionId: currentSession?.id || '',
       name: formData.name.trim(),
       price: parseInt(formData.price) || 0,
       costPrice: parseInt(formData.costPrice) || 0,
@@ -53,6 +57,11 @@ export default function ProductsPage() {
         <View className={styles.addButton} onClick={() => setShowModal(true)}>
           <Text className={styles.addIcon}>+</Text>
         </View>
+      </View>
+
+      <View className={styles.currentSession}>
+        <Text className={styles.sessionLabel}>当前场次</Text>
+        <Text className={styles.sessionValue}>{currentSession?.location || '未选择场次'} - {currentSession?.date}</Text>
       </View>
 
       <View className={styles.summaryCards}>
@@ -85,7 +94,6 @@ export default function ProductsPage() {
         </View>
         <View 
           className={`${styles.filterTab} ${filter === 'lowStock' ? styles.active : ''}`}
-          onClick={() => setFilter('lowStock')}
         >
           <Text>库存不足</Text>
         </View>

@@ -382,6 +382,122 @@
   color: $color-text-secondary;
 }
 
+.conclusionSection {
+  margin-top: $spacing-sm;
+}
+
+.conclusionInput {
+  width: 100%;
+  height: 200rpx;
+  padding: $spacing-md;
+  border: 1rpx solid $color-border;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  box-sizing: border-box;
+}
+
+.conclusionButtons {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.conclusionButton {
+  flex: 1;
+  height: $button-height-md;
+  background: $color-bg-hover;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  
+  &:active {
+    background: rgba($color-primary, 0.1);
+    color: $color-primary;
+  }
+}
+
+.locationArrow {
+  font-size: $font-size-xl;
+  color: $color-text-tertiary;
+}
+
+.locationDetailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.locationDetailTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.locationDetailClose {
+  font-size: $font-size-lg;
+  color: $color-text-tertiary;
+  padding: $spacing-xs;
+}
+
+.locationDetailList {
+  background: rgba($color-primary, 0.03);
+  border-radius: $radius-md;
+  padding: $spacing-xs;
+}
+
+.locationDetailItem {
+  padding: $spacing-md;
+  border-bottom: 1rpx solid $color-divider;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.locationDetailDate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-xs;
+}
+
+.locationDetailProfitPositive {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-success;
+}
+
+.locationDetailProfitNegative {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-error;
+}
+
+.locationDetailInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.locationDetailSales {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.locationDetailNotes {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  background: $color-bg-hover;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-sm;
+  margin-top: $spacing-xs;
+}
+
 .emptyState {
   display: flex;
   flex-direction: column;
