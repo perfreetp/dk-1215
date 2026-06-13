@@ -50,7 +50,15 @@ export interface Target {
 export interface LocationCompare {
   location: string;
   totalIncome: number;
+  totalExpense: number;
   totalProfit: number;
   avgProfit: number;
+  bestProfit: number;
   count: number;
+}
+
+export interface PreparationItem {
+  id: string;
+  text: string;
+  checked: boolean;
 }

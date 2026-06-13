@@ -307,6 +307,81 @@
   margin-top: 4rpx;
 }
 
+.locationBest {
+  font-size: $font-size-xs;
+  color: $color-primary;
+  margin-top: 4rpx;
+}
+
+.preparationList {
+  margin-top: $spacing-sm;
+}
+
+.preparationItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm 0;
+}
+
+.preparationCheckbox {
+  width: 44rpx;
+  height: 44rpx;
+  border: 2rpx solid $color-border;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &.checked {
+    background: $color-primary;
+    border-color: $color-primary;
+  }
+  
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.checkIcon {
+  font-size: $font-size-sm;
+  color: $color-text-white;
+}
+
+.preparationText {
+  flex: 1;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  
+  &.checked {
+    text-decoration: line-through;
+    color: $color-text-tertiary;
+  }
+}
+
+.warningCard {
+  background: rgba($color-warning, 0.1);
+  border-left: 4rpx solid $color-warning;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.warningTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-warning;
+  margin-bottom: $spacing-xs;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.warningText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
 .emptyState {
   display: flex;
   flex-direction: column;

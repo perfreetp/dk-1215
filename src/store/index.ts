@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import type { Session, IncomeRecord, Product, Feedback, Report, Target } from '@/types';
+import type { Session, IncomeRecord, Product, Feedback, Target, PreparationItem } from '@/types';
 import { mockSessions, mockIncomeRecords, mockProducts, mockFeedbacks } from '@/data/mock';
 
 interface State {
@@ -9,6 +9,7 @@ interface State {
   feedbacks: Feedback[];
   currentSessionId: string | null;
   target: Target;
+  preparationLists: Map<string, PreparationItem[]>;
 }
 
 type Action =
@@ -23,7 +24,8 @@ type Action =
   | { type: 'ADD_FEEDBACK'; payload: Feedback }
   | { type: 'UPDATE_FEEDBACK'; payload: Feedback }
   | { type: 'SET_TARGET'; payload: Target }
-  | { type: 'UPDATE_SESSION_PHOTOS'; payload: { sessionId: string; photos: string[] } };
+  | { type: 'UPDATE_SESSION_PHOTOS'; payload: { sessionId: string; photos: string[] } }
+  | { type: 'UPDATE_PREPARATION_LIST'; payload: { sessionId: string; items: PreparationItem[] } };
 
 const initialState: State = {
   sessions: mockSessions,
@@ -36,7 +38,8 @@ const initialState: State = {
     amount: 5000,
     deadline: '2024-03-31',
     progress: 0
-  }
+  },
+  preparationLists: new Map()
 };
 
 function reducer(state: State, action: Action): State {
@@ -85,6 +88,11 @@ function reducer(state: State, action: Action): State {
           s.id === action.payload.sessionId ? { ...s, photos: action.payload.photos } : s
         )
       };
+    case 'UPDATE_PREPARATION_LIST':
+      return {
+        ...state,
+        preparationLists: new Map(state.preparationLists).set(action.payload.sessionId, action.payload.items)
+      };
     default:
       return state;
   }
@@ -127,4 +135,9 @@ export function useIncomeRecord(sessionId: string) {
 export function useFeedback(sessionId: string) {
   const { state } = useStore();
   return state.feedbacks.find(f => f.sessionId === sessionId);
+}
+
+export function usePreparationList(sessionId: string) {
+  const { state } = useStore();
+  return state.preparationLists.get(sessionId) || [];
 }
