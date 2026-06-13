@@ -425,6 +425,87 @@
   color: $color-text-tertiary;
 }
 
+.locationExtremes {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.extremeCard {
+  flex: 1;
+  padding: $spacing-md;
+  border-radius: $radius-md;
+  
+  &.best {
+    background: linear-gradient(135deg, rgba($color-success, 0.1) 0%, rgba($color-primary, 0.05) 100%);
+    border: 1rpx solid rgba($color-success, 0.2);
+  }
+  
+  &.worst {
+    background: linear-gradient(135deg, rgba($color-error, 0.1) 0%, rgba($color-warning, 0.05) 100%);
+    border: 1rpx solid rgba($color-error, 0.2);
+  }
+}
+
+.extremeLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.extremeDate {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.extremeProfit {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  
+  &.negative {
+    color: $color-error;
+  }
+  
+  .extremeCard.best & {
+    color: $color-success;
+  }
+  
+  .extremeCard.worst & {
+    color: $color-error;
+  }
+}
+
+.extremeSales {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.sortTabs {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.sortTab {
+  padding: 12rpx 24rpx;
+  border-radius: $radius-round;
+  font-size: $font-size-sm;
+  background: $color-bg-hover;
+  color: $color-text-secondary;
+  
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+  
+  &:active {
+    opacity: 0.9;
+  }
+}
+
 .locationDetailHeader {
   display: flex;
   justify-content: space-between;

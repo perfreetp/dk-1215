@@ -122,6 +122,129 @@
   margin-bottom: $spacing-xl;
 }
 
+.productCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.productHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.productName {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.productEdit {
+  font-size: $font-size-lg;
+  padding: $spacing-xs;
+  
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.productRow {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.productPrice,
+.productCost,
+.productSold,
+.productStock,
+.productProfit {
+  flex: 1;
+  text-align: center;
+}
+
+.priceLabel,
+.costLabel,
+.soldLabel,
+.stockLabel,
+.profitLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.priceValue,
+.costValue,
+.soldValue,
+.stockValue,
+.profitValue {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.profitValue {
+  color: $color-success;
+}
+
+.stockProgress {
+  margin-bottom: $spacing-md;
+}
+
+.stockBar {
+  height: 12rpx;
+  background: $color-divider;
+  border-radius: $radius-round;
+  overflow: hidden;
+  margin-bottom: 8rpx;
+}
+
+.stockFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-success, $color-primary);
+  border-radius: $radius-round;
+  transition: width $transition-base;
+  
+  &.lowStock {
+    background: linear-gradient(90deg, $color-warning, $color-error);
+  }
+}
+
+.stockText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  
+  &.lowStock {
+    color: $color-warning;
+  }
+}
+
+.productNote {
+  padding: $spacing-sm;
+  background: rgba($color-primary, 0.05);
+  border-radius: $radius-md;
+  margin-bottom: $spacing-xs;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.noteLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.noteText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
 .emptyState {
   display: flex;
   flex-direction: column;

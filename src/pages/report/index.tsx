@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, Input, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useStore, useCurrentSession, usePreparationList, useSessionProducts, useReportConclusion } from '@/store';
@@ -77,6 +77,8 @@ function generateConclusion(incomeRecord, products, feedback): string {
   return parts.join(' ');
 }
 
+type SortType = 'date' | 'profit' | 'sales';
+
 export default function ReportPage() {
   const { state, dispatch } = useStore();
   const currentSession = useCurrentSession();
@@ -88,7 +90,8 @@ export default function ReportPage() {
   const [targetAmount, setTargetAmount] = useState(state.target.amount.toString());
   const [targetDeadline, setTargetDeadline] = useState(state.target.deadline);
   const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);
-  const [conclusion, setConclusion] = useState(savedConclusion);
+  const [sortType, setSortType] = useState<SortType>('date');
+  const [conclusion, setConclusion] = useState('');
   
   const currentIncomeRecord = state.incomeRecords.find(i => i.sessionId === currentSession?.id);
   const currentFeedback = state.feedbacks.find(f => f.sessionId === currentSession?.id);
@@ -108,8 +111,17 @@ export default function ReportPage() {
   const incomeSalesVolume = currentIncomeRecord?.salesVolume || 0;
   const productSalesVolume = sessionProducts.reduce((sum, p) => sum + p.sold, 0);
   const salesDiff = Math.abs(incomeSalesVolume - productSalesVolume);
-  const hasSalesMismatch = salesDiff > 5 && incomeSalesVolume > 0 && productSalesVolume > 0;
+  const hasSalesMismatch = incomeSalesVolume !== productSalesVolume && (incomeSalesVolume > 0 || productSalesVolume > 0);
   
+  useEffect(() => {
+    const autoConclusion = generateConclusion(currentIncomeRecord, sessionProducts, currentFeedback);
+    if (savedConclusion) {
+      setConclusion(savedConclusion);
+    } else {
+      setConclusion(autoConclusion);
+    }
+  }, [currentSession?.id, savedConclusion, currentIncomeRecord, sessionProducts, currentFeedback]);
+
   const staticItems: PreparationItem[] = [
     { id: 'sta_p1', text: '✅ 准备零钱和收款码', checked: false, type: 'static' },
     { id: 'sta_p2', text: '✅ 检查摊位布置和展示道具', checked: false, type: 'static' },
@@ -136,7 +148,7 @@ export default function ReportPage() {
   }, [savedPreparationList, currentIncomeRecord, sessionProducts]);
 
   const locationComparison: LocationCompare[] = useMemo(() => {
-    const locationMap = new Map<string, { totalIncome: number; totalExpense: number; bestProfit: number; count: number }>();
+    const locationMap = new Map<string, { totalIncome: number; totalExpense: number; bestProfit: number; worstProfit: number; count: number }>();
     
     state.sessions.forEach(session => {
       const incomeRecord = state.incomeRecords.find(i => i.sessionId === session.id);
@@ -149,6 +161,7 @@ export default function ReportPage() {
           totalIncome: 0, 
           totalExpense: 0, 
           bestProfit: -Infinity, 
+          worstProfit: Infinity,
           count: 0 
         };
         
@@ -156,6 +169,7 @@ export default function ReportPage() {
           totalIncome: existing.totalIncome + sessionIncome,
           totalExpense: existing.totalExpense + sessionExpense,
           bestProfit: Math.max(existing.bestProfit, sessionProfit),
+          worstProfit: Math.min(existing.worstProfit, sessionProfit),
           count: existing.count + 1
         });
       }
@@ -168,13 +182,15 @@ export default function ReportPage() {
       totalProfit: data.totalIncome - data.totalExpense,
       avgProfit: data.count > 0 ? (data.totalIncome - data.totalExpense) / data.count : 0,
       bestProfit: data.bestProfit === -Infinity ? 0 : data.bestProfit,
+      worstProfit: data.worstProfit === Infinity ? 0 : data.worstProfit,
       count: data.count
     }));
   }, [state.sessions, state.incomeRecords]);
 
-  const locationDetailSessions = useMemo(() => {
-    if (!showLocationDetail) return [];
-    return state.sessions
+  const locationDetailData = useMemo(() => {
+    if (!showLocationDetail) return { sessions: [], bestSession: null, worstSession: null };
+    
+    const sessions = state.sessions
       .filter(s => s.location === showLocationDetail)
       .map(session => {
         const incomeRecord = state.incomeRecords.find(i => i.sessionId === session.id);
@@ -187,9 +203,25 @@ export default function ReportPage() {
           salesVolume: incomeRecord?.salesVolume || 0,
           notes: incomeRecord?.notes || ''
         };
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [showLocationDetail, state.sessions, state.incomeRecords]);
+      });
+    
+    let sortedSessions = [...sessions];
+    switch (sortType) {
+      case 'profit':
+        sortedSessions.sort((a, b) => b.profit - a.profit);
+        break;
+      case 'sales':
+        sortedSessions.sort((a, b) => b.salesVolume - a.salesVolume);
+        break;
+      default:
+        sortedSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+    
+    const bestSession = sessions.length > 0 ? sessions.reduce((a, b) => a.profit > b.profit ? a : b) : null;
+    const worstSession = sessions.length > 0 ? sessions.reduce((a, b) => a.profit < b.profit ? a : b) : null;
+    
+    return { sessions: sortedSessions, bestSession, worstSession };
+  }, [showLocationDetail, state.sessions, state.incomeRecords, sortType]);
 
   const totalProfit = locationComparison.reduce((sum, loc) => sum + loc.totalProfit, 0);
   const targetProgress = state.target.amount > 0 ? Math.round((totalProfit / state.target.amount) * 100) : 0;
@@ -353,7 +385,7 @@ export default function ReportPage() {
           <Input 
             className={styles.conclusionInput}
             type="textarea"
-            value={conclusion || autoConclusion}
+            value={conclusion}
             onChange={(e) => setConclusion(e.detail.value)}
             placeholder="自动生成的复盘结论..."
             placeholderStyle={{ color: '#999' }}
@@ -438,9 +470,50 @@ export default function ReportPage() {
             <Text className={styles.locationDetailTitle}>{showLocationDetail} - 历史场次</Text>
             <Text className={styles.locationDetailClose} onClick={() => setShowLocationDetail(null)}>✕</Text>
           </View>
+          
+          {locationDetailData.bestSession && locationDetailData.worstSession && (
+            <View className={styles.locationExtremes}>
+              <View className={styles.extremeCard best}>
+                <Text className={styles.extremeLabel}>🌟 最佳表现</Text>
+                <Text className={styles.extremeDate}>{locationDetailData.bestSession.date}</Text>
+                <Text className={styles.extremeProfit}>+¥{locationDetailData.bestSession.profit}</Text>
+                <Text className={styles.extremeSales}>销量: {locationDetailData.bestSession.salesVolume}件</Text>
+              </View>
+              <View className={styles.extremeCard worst}>
+                <Text className={styles.extremeLabel}>💔 最差表现</Text>
+                <Text className={styles.extremeDate}>{locationDetailData.worstSession.date}</Text>
+                <Text className={`${styles.extremeProfit} ${locationDetailData.worstSession.profit >= 0 ? '' : styles.negative}`}>
+                  {locationDetailData.worstSession.profit >= 0 ? '+' : ''}¥{locationDetailData.worstSession.profit}
+                </Text>
+                <Text className={styles.extremeSales}>销量: {locationDetailData.worstSession.salesVolume}件</Text>
+              </View>
+            </View>
+          )}
+          
+          <View className={styles.sortTabs}>
+            <View 
+              className={`${styles.sortTab} ${sortType === 'date' ? styles.active : ''}`}
+              onClick={() => setSortType('date')}
+            >
+              <Text>按日期</Text>
+            </View>
+            <View 
+              className={`${styles.sortTab} ${sortType === 'profit' ? styles.active : ''}`}
+              onClick={() => setSortType('profit')}
+            >
+              <Text>按利润</Text>
+            </View>
+            <View 
+              className={`${styles.sortTab} ${sortType === 'sales' ? styles.active : ''}`}
+              onClick={() => setSortType('sales')}
+            >
+              <Text>按销量</Text>
+            </View>
+          </View>
+          
           <View className={styles.locationDetailList}>
-            {locationDetailSessions.length > 0 ? (
-              locationDetailSessions.map((session, index) => (
+            {locationDetailData.sessions.length > 0 ? (
+              locationDetailData.sessions.map((session, index) => (
                 <View key={index} className={styles.locationDetailItem}>
                   <View className={styles.locationDetailDate}>
                     <Text>{session.date}</Text>
